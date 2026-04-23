@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="議事録メーカー">
+  <title>議事録メーカー</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+      background: #f2f2f7;
+      color: #1c1c1e;
+      min-height: 100vh;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    header {
+      background: #fff;
+      padding: 16px 20px;
+      padding-top: calc(16px + env(safe-area-inset-top));
+      border-bottom: 1px solid #e5e5ea;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    header h1 { font-size: 20px; font-weight: 700; }
+
+    #key-btn {
+      background: none;
+      border: none;
+      font-size: 22px;
+      cursor: pointer;
+      padding: 4px;
+    }
+
+    main { padding: 20px 16px; display: flex; flex-direction: column; gap: 16px; }
+
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    /* APIキー警告 */
+    #api-warning {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 14px;
+    }
+
+    #api-warning button {
+      margin-left: auto;
+      background: #ffc107;
+      border: none;
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* ファイル選択エリア */
+    #drop-zone {
+      border: 2px dashed #c7c7cc;
+      border-radius: 14px;
+      padding: 32px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    #drop-zone:hover, #drop-zone.drag-over {
+      border-color: #007aff;
+      background: #f0f6ff;
+    }
+
+    #drop-zone .icon { font-size: 48px; margin-bottom: 8px; }
+    #drop-zone .title { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+    #drop-zone .sub { font-size: 13px; color: #8e8e93; }
+
+    #file-input { display: none; }
+
+    /* 選択済みファイル表示 */
+    #selected-file {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      background: #f0f6ff;
+      border: 1px solid #007aff;
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 14px;
+    }
+
+    #selected-file .file-name { flex: 1; font-weight: 500; word-break: break-all; }
+
+    #selected-file button {
+      background: none;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+      color: #8e8e93;
+      padding: 0 4px;
+    }
+
+    /* 実行ボタン */
+    #generate-btn {
+      width: 100%;
+      background: #007aff;
+      color: #fff;
+      border: none;
+      border-radius: 14px;
+      padding: 16px;
+      font-size: 17px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    #generate-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    #generate-btn:not(:disabled):active { opacity: 0.8; }
+
+    /* 処理中 */
+    #progress {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      padding: 24px;
+    }
+
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid #e5e5ea;
+      border-top-color: #007aff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #progress-msg { font-size: 14px; color: #8e8e93; }
+
+    /* エラー */
+    #error-box {
+      display: none;
+      background: #fff0f0;
+      border: 1px solid #ff3b30;
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 14px;
+      color: #c0392b;
+    }
+
+    /* 結果 */
+    #result-section { display: none; }
+
+    #result-section .result-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    #result-section h2 { font-size: 17px; font-weight: 700; }
+
+    .action-btns { display: flex; gap: 8px; }
+
+    .action-btns button {
+      background: #f2f2f7;
+      border: none;
+      border-radius: 10px;
+      padding: 8px 14px;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .action-btns button:active { opacity: 0.7; }
+
+    #minutes-text {
+      font-size: 15px;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* モーダル */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 100;
+      align-items: flex-end;
+    }
+
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: #fff;
+      border-radius: 20px 20px 0 0;
+      padding: 24px 20px;
+      padding-bottom: calc(24px + env(safe-area-inset-bottom));
+      width: 100%;
+    }
+
+    .modal h2 { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+    .modal p { font-size: 13px; color: #8e8e93; margin-bottom: 16px; }
+
+    .modal input {
+      width: 100%;
+      border: 1.5px solid #c7c7cc;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 15px;
+      margin-bottom: 12px;
+      outline: none;
+    }
+
+    .modal input:focus { border-color: #007aff; }
+
+    .modal-btns { display: flex; gap: 10px; }
+
+    .modal-btns button {
+      flex: 1;
+      padding: 14px;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-cancel { background: #f2f2f7; color: #1c1c1e; }
+    .btn-save { background: #007aff; color: #fff; }
+    .btn-save:disabled { opacity: 0.4; }
+
+    /* コピー完了トースト */
+    #toast {
+      position: fixed;
+      bottom: calc(20px + env(safe-area-inset-bottom));
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(0,0,0,0.75);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-size: 14px;
+      opacity: 0;
+      transition: opacity 0.3s, transform 0.3s;
+      pointer-events: none;
+    }
+
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>📝 議事録メーカー</h1>
+  <button id="key-btn" title="APIキー設定">🔑</button>
+</header>
+
+<main>
+  <!-- APIキー警告 -->
+  <div id="api-warning" style="display:none">
+    ⚠️ Gemini APIキーが未設定です
+    <button onclick="openKeyModal()">設定する</button>
+  </div>
+
+  <!-- ファイル選択 -->
+  <div id="drop-zone" onclick="document.getElementById('file-input').click()">
+    <div class="icon">🎙️</div>
+    <div class="title">ボイスメモを選択</div>
+    <div class="sub">タップしてファイルを選ぶ（.m4a / .mp3 / .wav）</div>
+  </div>
+  <input type="file" id="file-input" accept="audio/*">
+
+  <!-- 選択済みファイル -->
+  <div id="selected-file">
+    <span>🎵</span>
+    <span class="file-name" id="file-name-text"></span>
+    <button onclick="clearFile()">✕</button>
+  </div>
+
+  <!-- エラー -->
+  <div id="error-box"></div>
+
+  <!-- 処理中 -->
+  <div id="progress" class="card">
+    <div class="spinner"></div>
+    <div id="progress-msg">処理中...</div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button id="generate-btn" disabled onclick="generate()">議事録を生成</button>
+
+  <!-- 結果 -->
+  <div id="result-section" class="card">
+    <div class="result-header">
+      <h2>議事録</h2>
+      <div class="action-btns">
+        <button onclick="copyMinutes()">📋 コピー</button>
+        <button onclick="shareMinutes()">↗ 共有</button>
+      </div>
+    </div>
+    <div id="minutes-text"></div>
+  </div>
+</main>
+
+<!-- APIキーモーダル -->
+<div class="modal-overlay" id="key-modal" onclick="closeKeyModalOutside(event)">
+  <div class="modal">
+    <h2>🔑 Gemini APIキー</h2>
+    <p>Google AI Studio（aistudio.google.com）で無料取得できます</p>
+    <input type="password" id="key-input" placeholder="AIzaSy..." autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeKeyModal()">キャンセル</button>
+      <button class="btn-save" id="save-key-btn" onclick="saveKey()" disabled>保存</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast">コピーしました！</div>
+
+<script>
+  // ── APIキー管理 ──────────────────────────────────────────
+
+  function getKey() { return localStorage.getItem('gemini_api_key') || ''; }
+
+  function checkKeyWarning() {
+    document.getElementById('api-warning').style.display = getKey() ? 'none' : 'flex';
+    updateGenerateBtn();
+  }
+
+  function openKeyModal() {
+    document.getElementById('key-input').value = getKey();
+    updateSaveBtn();
+    document.getElementById('key-modal').classList.add('open');
+  }
+
+  function closeKeyModal() {
+    document.getElementById('key-modal').classList.remove('open');
+  }
+
+  function closeKeyModalOutside(e) {
+    if (e.target === document.getElementById('key-modal')) closeKeyModal();
+  }
+
+  function saveKey() {
+    const val = document.getElementById('key-input').value.trim();
+    if (!val) return;
+    localStorage.setItem('gemini_api_key', val);
+    closeKeyModal();
+    checkKeyWarning();
+  }
+
+  function updateSaveBtn() {
+    const val = document.getElementById('key-input').value.trim();
+    document.getElementById('save-key-btn').disabled = !val;
+  }
+
+  document.getElementById('key-btn').onclick = openKeyModal;
+  document.getElementById('key-input').addEventListener('input', updateSaveBtn);
+  document.getElementById('key-input').addEventListener('keydown', e => { if (e.key === 'Enter') saveKey(); });
+
+  // ── ファイル選択 ──────────────────────────────────────────
+
+  let selectedFile = null;
+
+  document.getElementById('file-input').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    selectFile(file);
+  });
+
+  // ドラッグ＆ドロップ（Mac用）
+  const dropZone = document.getElementById('drop-zone');
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('audio/')) selectFile(file);
+  });
+
+  function selectFile(file) {
+    selectedFile = file;
+    document.getElementById('drop-zone').style.display = 'none';
+    const sel = document.getElementById('selected-file');
+    sel.style.display = 'flex';
+    document.getElementById('file-name-text').textContent = file.name;
+    hideError();
+    updateGenerateBtn();
+  }
+
+  function clearFile() {
+    selectedFile = null;
+    document.getElementById('file-input').value = '';
+    document.getElementById('drop-zone').style.display = '';
+    document.getElementById('selected-file').style.display = 'none';
+    document.getElementById('result-section').style.display = 'none';
+    hideError();
+    updateGenerateBtn();
+  }
+
+  function updateGenerateBtn() {
+    document.getElementById('generate-btn').disabled = !(selectedFile && getKey());
+  }
+
+  // ── 議事録生成 ──────────────────────────────────────────
+
+  async function generate() {
+    if (!selectedFile || !getKey()) return;
+
+    setProcessing(true, '音声を読み込み中...');
+    hideError();
+    document.getElementById('result-section').style.display = 'none';
+
+    try {
+      setProcessing(true, 'Geminiで解析中...');
+      const base64 = await fileToBase64(selectedFile);
+      const mimeType = selectedFile.type || 'audio/mp4';
+
+      const result = await callGemini(base64, mimeType);
+
+      document.getElementById('minutes-text').textContent = result;
+      document.getElementById('result-section').style.display = '';
+      setProcessing(false);
+    } catch (err) {
+      showError(err.message || 'エラーが発生しました');
+      setProcessing(false);
+    }
+  }
+
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = reader.result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function callGemini(base64Audio, mimeType) {
+    const apiKey = getKey();
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+    const prompt = `以下の会議音声を聞いて、日本語で議事録（要約）を作成してください。
+
+【フォーマット】
+## 概要
+（会議全体の1〜2文の要約）
+
+## 主なトピック
+（議論された内容を箇条書きで）
+
+## 決定事項
+（決まったことがあれば箇条書きで。なければ「特になし」）`;
+
+    const body = {
+      contents: [{
+        parts: [
+          { inline_data: { mime_type: mimeType, data: base64Audio } },
+          { text: prompt }
+        ]
+      }],
+      generationConfig: { temperature: 0.3 }
+    };
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      const msg = errData?.error?.message || `APIエラー (${res.status})`;
+      throw new Error(msg);
+    }
+
+    const data = await res.json();
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error('レスポンスの解析に失敗しました');
+    return text;
+  }
+
+  // ── UI ヘルパー ──────────────────────────────────────────
+
+  function setProcessing(on, msg) {
+    document.getElementById('progress').style.display = on ? 'flex' : 'none';
+    document.getElementById('progress-msg').textContent = msg || '';
+    document.getElementById('generate-btn').disabled = on || !(selectedFile && getKey());
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('error-box');
+    el.textContent = '⚠️ ' + msg;
+    el.style.display = '';
+  }
+
+  function hideError() {
+    document.getElementById('error-box').style.display = 'none';
+  }
+
+  // ── コピー・共有 ──────────────────────────────────────────
+
+  async function copyMinutes() {
+    const text = document.getElementById('minutes-text').textContent;
+    await navigator.clipboard.writeText(text).catch(() => {});
+    showToast('コピーしました！');
+  }
+
+  async function shareMinutes() {
+    const text = document.getElementById('minutes-text').textContent;
+    if (navigator.share) {
+      await navigator.share({ title: '議事録', text }).catch(() => {});
+    } else {
+      await navigator.clipboard.writeText(text).catch(() => {});
+      showToast('クリップボードにコピーしました');
+    }
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2000);
+  }
+
+  // ── 起動時 ──────────────────────────────────────────────
+  checkKeyWarning();
+</script>
+</body>
+</html>
