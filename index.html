@@ -92,7 +92,16 @@
     #drop-zone .title { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
     #drop-zone .sub { font-size: 13px; color: #8e8e93; }
 
-    #file-input { display: none; }
+    #file-input {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0; left: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    #drop-zone { position: relative; }
 
     /* 選択済みファイル表示 */
     #selected-file {
@@ -289,12 +298,12 @@
   </div>
 
   <!-- ファイル選択 -->
-  <div id="drop-zone" onclick="document.getElementById('file-input').click()">
+  <div id="drop-zone">
+    <input type="file" id="file-input" accept="audio/*">
     <div class="icon">🎙️</div>
     <div class="title">ボイスメモを選択</div>
     <div class="sub">タップしてファイルを選ぶ（.m4a / .mp3 / .wav）</div>
   </div>
-  <input type="file" id="file-input" accept="audio/*">
 
   <!-- 選択済みファイル -->
   <div id="selected-file">
